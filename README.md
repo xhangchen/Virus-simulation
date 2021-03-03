@@ -35,7 +35,7 @@
 
  - set_destination：定义人群的目的地
 
- - heck_at_destination：查看已经到达目的地的人**
+ - heck_at_destination：查看已经到达目的地的人
 
  - keep_at_destination：把那些已经到达的人留在游荡的范围内
 
@@ -114,4 +114,7 @@
 ## 结论
 在疫情期间，实施减少接触、封锁地方、医疗条件不足情况下的自我隔离等措施都能起到一定的疫情防控效果。
 
->     参靠项目：https://github.com/paulvangentcom/python_corona_simulation#case-reduced-interaction
+##
+
+
+>  参靠项目：https://github.com/paulvangentcom/python_corona_simulation#case-reduced-interaction
