@@ -1,127 +1,70 @@
-# Python COVID-19 ('Corona Virus') Simulation
+**代码思路**： 仿真过程与画板绘制采用模块化实现，各文件内容如下：
+Environment.py:包含仿真环境中所有能到达位置的函数定义，
 
-![covid-19 sim!](images/covidsim.gif)
+build_hospital：建立医院并返回它的坐标
 
-After seeing [this article](https://www.washingtonpost.com/graphics/2020/world/corona-simulator/) in the Washington Post I started wondering how such simulations might be done in Python, and indeed if I could expand upon the idea and make it more realistic.
+Config.py :包含所有与配置相关的函数和类
 
-For a moment I thought about writing the simualation itself in pure Python, with matplotlib as visualisation tool. However for large interacting populations, required computations scale quickly. Speeding up means reducing the operations to vector and matrix computations, something that can be done extremely efficiently through [NumPy](https://numpy.org/), which uses both a fast backend written in C, as well as makes use of hardware acceleration features like SIMD (single instruction, multiple data), which enables many operations on data arrays in relatively few clock cycles.
+Configuration类：包含仿真变量，方案标志，可视化变量，以坐标表示的模拟世界的大小，范围变量，人口变量，行动变量，感染变量，医疗保健变量，风险参数，自我隔离变量，锁定变量，自定义各类变量初值的函数，
 
-Aside from that, I've worked with NumPy a lot but felt there was still much to learn, so the challenge became: build such a simulation and improve upon it **using only NumPy** for the computations and matplotlib for the visualisation.
+Infection.py:包含计算新感染、恢复和死亡所需的所有函数
 
+find_nearby:确定在感染区内是否返回感染者或健康者
 
-# Simulation runs
+Infect:在受感染者周围由感染范围定义的区域发现新的感染，并用偶然感染机会感染其他人的功能
 
-## Index
-- [Simple infection simulation](#simple-infection-simulation)
-- [Simulating Age Effects and Health Care Capacity](#simulating-age-effects-and-health-care-capacity)
-	- [Case: 'Business As Usual'](#case-'business-as-usual')
-	- [Case: 'Reduced Interaction'](#case-'reduced-interaction')
-	- [Case: 'Lock-Down'](#case-'lock-down')
-	- [Case: 'Self-Isolation'](#case-'self-isolation')
-	- [Self-Isolation in Detail](#self-isolation-in-detail)
-	
-	
-**For reproducibility of all simulations, numpy's seed has been set to '100' unless otherwise specified**
+recover_or_die:判断患者恢复还是去世。
 
-## Summary video
-A video highlighting some of the scenarios [can be viewed here](http://www.paulvangent.com/covid/Covid_Compilation_reinfection.mp4)
+compute_mortality：根据年龄计算死亡率和风险
 
-## Simple Infection Simulation
-As a first step I built a simulation of a population of randomly moving people. The people stay within the world bounds and each tick there's a 2% chance of them changing heading and speed. There's a 3% chance of becoming sick when getting close to an infected person, and a 2% chance of a fatal ending. **Click the image to view the video**
+healthcare_infection_correction：纠正对医疗保健人群的感染
 
-<a href="http://www.paulvangent.com/covid/Simple_Simulation.mp4">
-<img align="center" src="https://github.com/paulvangentcom/python_corona_simulation/blob/master/images/horizontal/simple_simulation.png" alt="image of the simuation">
-</a>
+Motion.py:包含与人口流动性相关的所有函数的文件
 
-See [simple_simulation.py](simple_simulation.py) for the code.
+update_positions:使用航向和速度为下一时间步更新所有人的位置
 
-As you can see the virus managed to spread really quickly and almost got infected. In the end there were 44 fatalities, which is expected with a mortality rate of 2%.
+out_of_bounds：检查哪些人将要越界，并更正更新将要越界的个人航向
 
+update_randoms：更新航向和速度等随机状态
 
-## Simulating Age Effects and Health Care Capacity
-Reality is of course more complex. Let's incorporate increasing risks with age, as well as a simple representation of a limited capacity healthcare system. Both affect mortality during a pandemic: the elderly are vulnerable, and once the healthcare system becomes overwhelmed a lot of people are at increased risk of dying due to lack of treatment. The following parameters are active (all are or course settable):
+Path_planning.py:包含与目标导向的移动行为和路径规划相关的方法
 
-- the population's age follows a gaussian with a mean 55, SD of 1/3 the mean, and max of 105
-- population consists of 2000 individuals
-- there is a 3% chance of becoming infected when being near an infected person
-- baseline mortality is 2%
-- mortality chances start increasing at age 55, going up exponentially up to 10% at age 75 and beyond
-- healthcare capacity is 300 beds
-- when in medical treatment: mortality chance is halved
-- when _not_ in medial treatment: mortality chance increases threefold. 
-	- ***note*** that this affects the elderly disproportionally as their baseline risk is already higher to start with.
+go_to_location：将病人送往指定位置
 
-### Case 'Business As Usual'
+set_destination：定义人群的目的地
 
-See [simulation.py](simulation.py) for the code and settable parameters.
+check_at_destination：查看已经到达目的地的人
 
-The first simuation run shows a population that simply keeps doing their normal thing and moving around. **Click the image to view the video.**
+keep_at_destination：把那些已经到达的人留在游荡的范围内
 
-As you can see in the simulation still below, the healthcare system becomes completely overwhelmed, leading to 215 fatalities (10.75% of the population). 
+reset_destinations：重置目的地
 
-<a href="http://www.paulvangent.com/covid/LimitedHealthcare_FastSpread.mp4">
-<img align="center" src="https://github.com/paulvangentcom/python_corona_simulation/blob/master/images/horizontal/lowcapacity_fastmovement.png" alt="image of the simuation">
-</a>
+Population:包含有助于模拟参数初始化的填充函数
 
-### Case 'Reduced Interaction'
+initialize_population:为仿真初始化人群
 
-The second simulation has the same settings, but to simulate people staying at home whenever possible and only going out when they have to, mobilty is greatly reduced. **Click the image to view the video.**
+initialize_destination_matrix：初始化目的地矩阵
 
-As you can see in this simulation, while at some point healthcare capacity was overasked, the effects on mortality remain low at 58 fatal endings in this run (2.9%). That's almost 4x less fatalities.
+set_destination_bounds：传送限制范围内的所有人
 
-<a href="http://www.paulvangent.com/covid/LimitedHealthcare_SlowMobility.mp4">
-<img align="center" src="https://github.com/paulvangentcom/python_corona_simulation/blob/master/images/horizontal/lowcapacity_slowmovement.png" alt="image of the simuation">
-</a>
+save_data：将模拟数据转储到磁盘
 
+save_population：将给定时间段的总体数据转储到磁盘
 
-### Case 'Lock-Down'
-Let's simulate a lock-down once 5% of the population is infected. To simulate this, we will make 90% of the people stop moving once locked-down, the remaining 10% will move with substantially reduced speed to simulate them being more cautious. This 10% represents the professions that are considered critical to society: these people will still be on the move and in contact with other people even in a lock-down. Another part of the 10% comes from people being people, meaning no lock-down will be perfect as there will always be those breaking quarantine. **Click the image to view the video.**
+Population_trackers类：可以跟踪随时间变化的总体参数，然后用于计算统计数据或可视化。
 
-<a href="http://www.paulvangent.com/covid/lockdown_90percent.mp4">
-<img align="center" src="https://github.com/paulvangentcom/python_corona_simulation/blob/master/images/horizontal/lockdown_90percent.png" alt="image of the simuation">
-</a>
+Visualiser.py:包含可视化任务的所有函数
 
-Notice that once locked-down, the number of infections still increases for some time. This happens because of some of the healthy people will be locked into the same household with infected people, and thus become infected relatively quickly as well. If one of the moving population members (perhaps a mail man or someone delivering groceries) infects one of a cluster of people locked down together, the disease might spread. This leads to small and isolated outbreaks, which are contained very well through the lock-down.
+draw_tstep：构建图像和可视化
 
-However, if the lock down is lifted and a new case is introduced, a potential deadly situation quickly develops if no adequeate measures are taken:
+plot_sir：在总体跟踪器中绘制参数
 
-<a href="http://www.paulvangent.com/covid/lockdown_90percent_reinfect.mp4">
-<img align="center" src="https://github.com/paulvangentcom/python_corona_simulation/blob/master/images/horizontal/lockdown_reinfection.png" alt="image of the simuation">
-</a>
+Simulation.py:包含仿真类和仿真程序的主函数
 
-**In such a situation repeated lock-downs seem inevitable if the infection keeps returning.**
+reinitialise：重置仿真过程
 
-### Case 'Self-Isolation'
+population_init：人群初始化
 
-Another approach is self-isolation: instructing people who have symptoms to stay at home. This was the initial approach the Dutch government had taken and is the approach in many countries that are not locked down. How effective is such a measure, especially given that not everybody will (or can) follow it? [It turns out people can be infectious to others without manifesting symptoms](https://edition.cnn.com/2020/03/14/health/coronavirus-asymptomatic-spread/index.html), which further complicates such a 'stay home if you feel ill' scenario.
+tstep：在模拟中前进一个时间步长
 
-In the simulation, people who are infected will self-isolate. Those traveling to the isolation area can not infect others anymore, to simulate that these people are aware of their infection and will take precautions not to infect others. **Click the image to view the video.**
-
-<a href="http://www.paulvangent.com/covid/Self_Isolation.mp4">
-<img align="center" src="https://github.com/paulvangentcom/python_corona_simulation/blob/master/images/horizontal/self-isolation.png" alt="image of the simuation">
-</a>
-
-
-### Self-Isolation in Detail
-
-The picture here is more complex, as factors such as population density and the percentage of people that break the voluntary quarantaine have a large effect. Let's run the simulation with three population densities ('high': 2000 people on a 1x1 area, 'medium': 2000 people on a 1.5x1.5 area, and 'low': 2000 people on 2x2 area), and let's simulate different compliance percentages. Because the situation is based on randomness, let's do a monte carlo simulation with 100 iterations for each setting, so that we can be reasonably confident in our estimates:
-
-*High population density*:
-
-<img align="center" src="https://github.com/paulvangentcom/python_corona_simulation/blob/master/images/selfisolation_high_100r.png" alt="high density graph" width="700">
-
-*Medium population density:*
-
-<img align="center" src="https://github.com/paulvangentcom/python_corona_simulation/blob/master/images/selfisolation_medium_100r.png" alt="medium density graph" width="700">
-
-*Low population density:*
-
-<img align="center" src="https://github.com/paulvangentcom/python_corona_simulation/blob/master/images/selfisolation_low_100r.png" alt="medium density graph" width="700">
-
-
-This illustrates the interaction between the density of the population (and thus how many people you come across per time unit), and the percentage of infectious people present in the population. This is what you would expect, as both of these factors affect your odds of running into an infected person. Notice how the plots show a clear 'tipping point': after 'n' number of infections, the virus spread starts accelerating. The peak amounf ot infections strongly depends on how many people obey the self-isolation rules. However, reports have been going around that [even without symptoms you can still be contagious](https://edition.cnn.com/2020/03/14/health/coronavirus-asymptomatic-spread/index.html), and [remain contagious for quite some time after recovering](https://www.cbsnews.com/news/coronavirus-can-live-in-your-body-for-up-to-37-days-according-to-new-study/), which makes such a self-isolation scenario risky in the case of COVID-19.
-
-
-
-
-![logo](images/Logo_TUDelft.jpg)
+run：执行仿真程序
